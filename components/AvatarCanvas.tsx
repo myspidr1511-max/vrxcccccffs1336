@@ -3,8 +3,6 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { OrbitControls, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
-
-// ✅ الحزمة الصحيحة
 import { VRM, VRMUtils, VRMExpressionPresetName, VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { GLTFLoader } from 'three-stdlib'
 
@@ -42,10 +40,9 @@ function VRMModel({ analyser, vrmFile }: Props) {
 
   useEffect(() => {
     const loader = new GLTFLoader()
-    // ✅ تفعيل دعم VRM عبر الـ Plugin
     loader.register((parser) => new VRMLoaderPlugin(parser))
-
-    loader.load(url,
+    loader.load(
+      url,
       (gltf) => {
         const loaded = gltf.userData.vrm as VRM | undefined
         if (!loaded) return
@@ -56,7 +53,6 @@ function VRMModel({ analyser, vrmFile }: Props) {
       undefined,
       (err) => { console.error(err) }
     )
-
     return () => { if (vrm) vrm.scene.removeFromParent() }
   }, [url])
 
