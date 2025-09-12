@@ -1,3 +1,0 @@
-{
-  "buildCommand": "npm ci --include=dev || (npm install --include=dev --legacy-peer-deps && next build)"
-}
