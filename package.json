@@ -12,7 +12,7 @@
     "@react-three/fiber": "8.15.19",
     "@react-three/drei": "9",
     "three": "0.160.0",
-    "three-stdlib": "2.32.3",
+    "three-stdlib": "2.21.8",
     "three-vrm": "3.2.2",
     "zustand": "4.5.5",
     "next": "14.2.5",
