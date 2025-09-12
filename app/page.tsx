@@ -1,18 +1,15 @@
 'use client'
 import Image from 'next/image'
-import KeyGate from '@/components/KeyGate'
-import ChatPanel from '@/components/ChatPanel'
-import { useApp } from '@/lib/store'
+import KeyGate from '../components/KeyGate'
+import ChatPanel from '../components/ChatPanel'
+import { useApp } from '../lib/store'
 import { useEffect, useState } from 'react'
 
 export default function Page() {
   const { keys } = useApp()
   const [ready, setReady] = useState(false)
 
-  useEffect(() => {
-    setTimeout(()=>setReady(true), 50)
-  }, [])
-
+  useEffect(() => { setTimeout(()=>setReady(true), 50) }, [])
   const hasKeys = !!keys.openrouter && !!keys.eleven
 
   return (
