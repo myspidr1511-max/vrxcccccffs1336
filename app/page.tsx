@@ -1,4 +1,3 @@
-
 'use client'
 import Image from 'next/image'
 import KeyGate from '@/components/KeyGate'
@@ -11,7 +10,6 @@ export default function Page() {
   const [ready, setReady] = useState(false)
 
   useEffect(() => {
-    // ensure keys loaded from localStorage
     setTimeout(()=>setReady(true), 50)
   }, [])
 
