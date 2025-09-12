@@ -1,6 +1,8 @@
-
+const path = require('path')
 /** @type {import('next').NextConfig} */
-const nextConfig = {
-  experimental: { serverActions: { allowedOrigins: ['*'] } }
-};
-module.exports = nextConfig;
+module.exports = {
+  webpack: (config) => {
+    config.resolve.alias['@'] = path.resolve(__dirname)
+    return config
+  },
+}
