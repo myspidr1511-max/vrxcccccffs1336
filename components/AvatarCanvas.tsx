@@ -4,7 +4,8 @@ import { OrbitControls, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { VRM, VRMUtils, VRMExpressionPresetName, VRMLoaderPlugin } from '@pixiv/three-vrm'
-import { GLTFLoader } from 'three-stdlib'
+// ✅ استخدم GLTFLoader من three/examples لضبط الأنواع مع VRMLoaderPlugin
+import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 type Props = { analyser?: AnalyserNode | null; vrmFile?: File | null }
 
@@ -40,11 +41,12 @@ function VRMModel({ analyser, vrmFile }: Props) {
 
   useEffect(() => {
     const loader = new GLTFLoader()
+    // تفعيل دعم VRM عبر الـ Plugin
     loader.register((parser) => new VRMLoaderPlugin(parser))
     loader.load(
       url,
       (gltf) => {
-        const loaded = gltf.userData.vrm as VRM | undefined
+        const loaded = (gltf as any).userData?.vrm as VRM | undefined
         if (!loaded) return
         VRMUtils.removeUnnecessaryJoints(loaded.scene)
         loaded.scene.traverse((obj:any)=>{ obj.frustumCulled = false })
