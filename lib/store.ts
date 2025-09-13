@@ -1,31 +1,42 @@
-
+'use client'
 import { create } from 'zustand'
 
-type Msg = { role: 'user'|'assistant'; text: string; imageDataUrl?: string }
-type Keys = { openrouter?: string; eleven?: string; openai?: string }
+type Msg = { role: 'user'|'assistant'; content: string }
+type Keys = { openrouter?: string; eleven?: string; voiceId?: string; model?: string }
+
 type State = {
   keys: Keys
   setKeys: (k: Keys) => void
+
+  analyser: AnalyserNode | null
+  setAnalyser: (a: AnalyserNode | null) => void
+
+  vrmFile: File | null
+  setVrmFile: (f: File | null) => void
+
   messages: Msg[]
-  push: (m: Msg) => void
-  clear: () => void
-  model: string
-  setModel: (m: string) => void
-  voiceId: string
-  setVoiceId: (v: string) => void
+  pushMsg: (m: Msg) => void
 }
 
 export const useApp = create<State>((set) => ({
-  keys: {},
-  setKeys: (k) => {
-    localStorage.setItem('keys', JSON.stringify(k))
-    set({ keys: k })
+  keys: {
+    openrouter: typeof window !== 'undefined' ? localStorage.getItem('OPENROUTER_KEY') || '' : '',
+    eleven: typeof window !== 'undefined' ? localStorage.getItem('ELEVEN_KEY') || '' : '',
   },
+  setKeys: (k) => set((s) => {
+    if (typeof window !== 'undefined') {
+      if (k.openrouter !== undefined) localStorage.setItem('OPENROUTER_KEY', k.openrouter || '')
+      if (k.eleven !== undefined) localStorage.setItem('ELEVEN_KEY', k.eleven || '')
+    }
+    return { keys: { ...s.keys, ...k } }
+  }),
+
+  analyser: null,
+  setAnalyser: (a) => set({ analyser: a }),
+
+  vrmFile: null,
+  setVrmFile: (f) => set({ vrmFile: f }),
+
   messages: [],
-  push: (m) => set((s) => ({ messages: [...s.messages, m] })),
-  clear: () => set({ messages: [] }),
-  model: 'openai/gpt-4o-mini',
-  setModel: (m) => set({ model: m }),
-  voiceId: 'Adam', // ElevenLabs default voice
-  setVoiceId: (v) => set({ voiceId: v }),
+  pushMsg: (m) => set((s) => ({ messages: [...s.messages, m] })),
 }))
