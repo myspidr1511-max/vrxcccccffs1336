@@ -6,17 +6,19 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import * as THREE from 'three'
 import { VRM, VRMUtils, VRMExpressionPresetName, VRMLoaderPlugin } from '@pixiv/three-vrm'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
-import { useApp } from '../lib/store'
 
-type Props = { }
+type Win = typeof window & {
+  __ANALYSER?: AnalyserNode | null
+  __VRM_FILE?: File | null
+}
 
-function useSpeechLevel(analyser?: AnalyserNode | null) {
-  const data = useMemo(() => new Uint8Array(1024), [])
+function useSpeechLevel() {
   const [lvl, setLvl] = useState(0)
+  const data = useMemo(() => new Uint8Array(1024), [])
   useEffect(() => {
     let raf = 0
-    let smooth = 0
     const tick = () => {
+      const analyser = (window as unknown as Win).__ANALYSER || null
       if (analyser) {
         analyser.getByteTimeDomainData(data)
         let sum = 0
@@ -25,14 +27,13 @@ function useSpeechLevel(analyser?: AnalyserNode | null) {
           sum += v * v
         }
         const rms = Math.sqrt(sum / data.length)
-        smooth = smooth * 0.85 + rms * 0.15
-        setLvl(smooth)
+        setLvl(0.85 * lvl + 0.15 * rms)
       }
       raf = requestAnimationFrame(tick)
     }
     tick()
     return () => cancelAnimationFrame(raf)
-  }, [analyser, data])
+  }, [data, lvl])
   return lvl
 }
 
@@ -43,23 +44,26 @@ function applyDelta(b: THREE.Object3D | undefined, rest: THREE.Quaternion | unde
 }
 
 function VRMModel() {
-  const { analyser, vrmFile } = useApp()
-  const [vrm,setVrm]=useState<VRM|null>(null)
-  const url=useMemo(()=>vrmFile?URL.createObjectURL(vrmFile):"/avatar.vrm",[vrmFile])
-  const lvl=useSpeechLevel(analyser)
+  const [vrm, setVrm] = useState<VRM | null>(null)
+  const [src, setSrc] = useState<string>('/avatar.vrm')
+  const lvl = useSpeechLevel()
+  const bones = useRef<Record<string, THREE.Object3D>>({})
+  const rest = useRef<Record<string, THREE.Quaternion>>({})
+  const t = useRef(0)
+  const blinkT = useRef(0)
+  const nextBlink = useRef(2 + Math.random() * 2.5)
 
-  const bones=useRef<Record<string,THREE.Object3D>>({})
-  const rest=useRef<Record<string,THREE.Quaternion>>({})
-  const t=useRef(0)
-  const blinkT=useRef(0)
-  const nextBlink=useRef(2+Math.random()*2.5)
+  useEffect(() => {
+    const f = (window as unknown as Win).__VRM_FILE
+    setSrc(f ? URL.createObjectURL(f) : '/avatar.vrm')
+  }, [])
 
-  useEffect(()=>{
-    const loader=new GLTFLoader()
-    loader.register((p)=>new VRMLoaderPlugin(p))
-    loader.load(url,(gltf)=>{
-      const m=(gltf as any).userData?.vrm as VRM
-      if(!m) return
+  useEffect(() => {
+    const loader = new GLTFLoader()
+    loader.register((p) => new VRMLoaderPlugin(p))
+    loader.load(src, (gltf) => {
+      const m = (gltf as any).userData?.vrm as VRM
+      if (!m) return
       VRMUtils.removeUnnecessaryJoints(m.scene)
       m.scene.traverse((o:any)=>o.frustumCulled=false)
       m.scene.position.set(0,-0.9,0)
@@ -70,13 +74,14 @@ function VRMModel() {
       })
       setVrm(m)
     })
-  },[url])
+    return () => {}
+  }, [src])
 
-  useFrame((state,dt)=>{
+  useFrame((_,dt)=>{
     if(!vrm) return
-    t.current+=dt
+    t.current += dt
 
-    // تنفس خفيف
+    // تنفّس
     vrm.scene.position.y = -0.9 + Math.sin(t.current*1.2)*0.01
 
     // رمش
@@ -88,9 +93,9 @@ function VRMModel() {
       if (ph>=1){ blinkT.current=0; nextBlink.current=2+Math.random()*2.5; vrm.expressionManager?.setValue(VRMExpressionPresetName.Blink,1) }
     }
 
-    // حركة بشرية مع الكلام
-    const talk=Math.min(1,lvl*10)
-    const sway=Math.sin(t.current*1.1)*0.05
+    // رأس وذراعان “إنساني”
+    const talk = Math.min(1, lvl*10)
+    const sway = Math.sin(t.current*1.1)*0.05
     applyDelta(bones.current['neck'], rest.current['neck'], 0.10*talk, 0.6*sway, 0)
     applyDelta(bones.current['head'], rest.current['head'], 0.15*talk, 0.3*sway, 0)
     applyDelta(bones.current['leftUpperArm'],  rest.current['leftUpperArm'],  -0.2*talk,  0.3*sway, 0)
@@ -109,7 +114,7 @@ function VRMModel() {
   return vrm ? <primitive object={vrm.scene} /> : null
 }
 
-export default function AvatarCanvas({}:Props){
+export default function AvatarCanvas(){
   return (
     <div className="w-full h-[420px] rounded-2xl overflow-hidden border border-white/10">
       <Canvas camera={{position:[0,1.3,1.8], fov:35}}>
