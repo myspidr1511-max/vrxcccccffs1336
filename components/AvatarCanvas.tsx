@@ -14,7 +14,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 
 type Props = { analyser?: AnalyserNode | null; vrmFile?: File | null }
 
-// ====== صوت -> مستوى للفم ======
+// ===== صوت -> مستوى للفم
 function useMouth(analyser?: AnalyserNode | null) {
   const dataArray = useMemo(() => new Uint8Array(1024), [])
   const [level, setLevel] = useState(0)
@@ -39,21 +39,30 @@ function useMouth(analyser?: AnalyserNode | null) {
   return level
 }
 
-// ====== نموذج VRM مع تفاعلات ======
 function VRMModel({ analyser, vrmFile }: Props) {
   const group = useRef<THREE.Group>(null)
   const [vrm, setVrm] = useState<VRM | null>(null)
-  const url = useMemo(
-    () => (vrmFile ? URL.createObjectURL(vrmFile) : '/avatar.vrm'),
-    [vrmFile]
-  )
+  const url = useMemo(() => (vrmFile ? URL.createObjectURL(vrmFile) : '/avatar.vrm'), [vrmFile])
 
-  // متغيرات أنيميشن بسيطة
   const mouthLevel = useMouth(analyser || undefined)
-  const tRef = useRef(0)
-  const blinkTimer = useRef(0)
-  const nextBlinkAt = useRef(2 + Math.random() * 2)
-  const breathing = useRef(0)
+
+  // عظام سنعدّلها
+  const bones = useRef<{
+    L?: THREE.Object3D
+    R?: THREE.Object3D
+    Lf?: THREE.Object3D
+    Rf?: THREE.Object3D
+  }>({})
+
+  // كواتيرنيون البداية والهدف
+  const qInit = useRef<{ [k: string]: THREE.Quaternion }>({})
+  const qTarget = useRef<{ [k: string]: THREE.Quaternion }>({})
+  const poseBlend = useRef(0) // 0..1
+
+  // رمش وتنفس
+  const blinkT = useRef(0)
+  const nextBlink = useRef(2 + Math.random() * 2.5)
+  const breathT = useRef(0)
 
   useEffect(() => {
     const loader = new GLTFLoader()
@@ -65,19 +74,34 @@ function VRMModel({ analyser, vrmFile }: Props) {
         const loaded = (gltf as any).userData?.vrm as VRM | undefined
         if (!loaded) return
         VRMUtils.removeUnnecessaryJoints(loaded.scene)
+        loaded.scene.traverse((o: any) => (o.frustumCulled = false))
 
-        // تحسين وضعية البداية والحجم
+        // تموضع مبدئي
         loaded.scene.position.set(0, -0.9, 0)
         loaded.scene.scale.setScalar(1.1)
-        loaded.scene.traverse((obj: any) => {
-          obj.frustumCulled = false
-        })
 
-        // خفض الذراعين من T-Pose
-        const L = loaded.humanoid?.getNormalizedBoneNode('leftUpperArm')
-        const R = loaded.humanoid?.getNormalizedBoneNode('rightUpperArm')
-        if (L) L.rotation.z = 0.35
-        if (R) R.rotation.z = -0.35
+        // التقاط عظام الذراعين والساعدين
+        bones.current.L = loaded.humanoid?.getNormalizedBoneNode('leftUpperArm') || undefined
+        bones.current.R = loaded.humanoid?.getNormalizedBoneNode('rightUpperArm') || undefined
+        bones.current.Lf = loaded.humanoid?.getNormalizedBoneNode('leftLowerArm') || undefined
+        bones.current.Rf = loaded.humanoid?.getNormalizedBoneNode('rightLowerArm') || undefined
+
+        // حفظ كواتيرنيون البداية
+        for (const k of ['L', 'R', 'Lf', 'Rf'] as const) {
+          const b = bones.current[k]
+          if (b) qInit.current[k] = b.quaternion.clone()
+        }
+
+        // بناء أهداف Idle:
+        // إنزال الذراعين ~70° حول محور Z، وثني الساعد ~10°
+        const qZL = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), +1.2) // ~69°
+        const qZR = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 0, 1), -1.2)
+        const qElbow = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -0.18)
+
+        if (bones.current.L) qTarget.current.L = qInit.current.L.clone().multiply(qZL)
+        if (bones.current.R) qTarget.current.R = qInit.current.R.clone().multiply(qZR)
+        if (bones.current.Lf) qTarget.current.Lf = qInit.current.Lf.clone().multiply(qElbow)
+        if (bones.current.Rf) qTarget.current.Rf = qInit.current.Rf.clone().multiply(qElbow)
 
         setVrm(loaded)
       },
@@ -93,49 +117,42 @@ function VRMModel({ analyser, vrmFile }: Props) {
   useFrame((state, delta) => {
     if (!vrm) return
 
-    tRef.current += delta
-    breathing.current += delta
+    // مزج نحو وضع Idle خلال ~1.2s
+    if (poseBlend.current < 1) {
+      poseBlend.current = Math.min(1, poseBlend.current + delta * 0.8)
+      for (const k of Object.keys(qTarget.current)) {
+        const bone = (bones.current as any)[k]
+        const tgt = (qTarget.current as any)[k]
+        if (bone && tgt) bone.quaternion.slerp(tgt, poseBlend.current)
+      }
+    }
 
-    // تنفّس خفيف: حركة جسد طفيفة لأعلى/أسفل
-    const breatheY = Math.sin(breathing.current * 1.2) * 0.01
-    vrm.scene.position.y = -0.9 + breatheY
+    // تنفس خفيف
+    breathT.current += delta
+    vrm.scene.position.y = -0.9 + Math.sin(breathT.current * 1.2) * 0.01
 
-    // رمش: غلق قصير كل عدة ثوانٍ عشوائية
-    blinkTimer.current += delta
-    if (blinkTimer.current >= nextBlinkAt.current) {
-      // blink window ~120ms
-      const phase = (blinkTimer.current - nextBlinkAt.current) / 0.12
-      const v =
-        phase < 0
-          ? 0
-          : phase < 0.5
-          ? 1 - phase * 2
-          : phase < 1
-          ? (phase - 0.5) * 2
-          : 1
+    // رمش
+    blinkT.current += delta
+    if (blinkT.current >= nextBlink.current) {
+      const ph = (blinkT.current - nextBlink.current) / 0.12 // 120ms
+      const v = ph < 0 ? 1 : ph < 0.5 ? 1 - ph * 2 : ph < 1 ? (ph - 0.5) * 2 : 1
       vrm.expressionManager?.setValue(VRMExpressionPresetName.Blink, v)
-      if (phase >= 1) {
-        blinkTimer.current = 0
-        nextBlinkAt.current = 2 + Math.random() * 2.5
+      if (ph >= 1) {
+        blinkT.current = 0
+        nextBlink.current = 2 + Math.random() * 2.5
         vrm.expressionManager?.setValue(VRMExpressionPresetName.Blink, 1)
       }
     }
 
-    // تتبّع الرأس للكاميرا
+    // تتبع الرأس للكاميرا
     const head = vrm.humanoid?.getNormalizedBoneNode('head')
-    if (head) {
-      const camPos = state.camera.position.clone()
-      head.lookAt(camPos)
-    }
-
-    // سويَة وقفة خفيفة للجسم
-    vrm.scene.rotation.y = Math.sin(tRef.current * 0.5) * 0.1
+    if (head) head.lookAt(state.camera.position)
 
     // فم حسب الصوت
-    const v = Math.min(1.0, mouthLevel * 8.0)
-    vrm.expressionManager?.setValue(VRMExpressionPresetName.Aa, v)
-    vrm.expressionManager?.setValue(VRMExpressionPresetName.Ih, v * 0.6)
-    vrm.expressionManager?.setValue(VRMExpressionPresetName.Ou, v * 0.3)
+    const m = Math.min(1, mouthLevel * 8)
+    vrm.expressionManager?.setValue(VRMExpressionPresetName.Aa, m)
+    vrm.expressionManager?.setValue(VRMExpressionPresetName.Ih, m * 0.6)
+    vrm.expressionManager?.setValue(VRMExpressionPresetName.Ou, m * 0.3)
 
     vrm.update(delta)
   })
