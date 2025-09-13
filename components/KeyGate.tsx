@@ -1,63 +1,50 @@
-
 'use client'
+
 import { useEffect, useState } from 'react'
-import { useApp } from '@/lib/store'
+import { useApp } from '../lib/store'
 
 export default function KeyGate() {
-  const { keys, setKeys, model, setModel, voiceId, setVoiceId } = useApp()
+  const { keys, setKeys } = useApp()
   const [openrouter, setOpenrouter] = useState(keys.openrouter || '')
   const [eleven, setEleven] = useState(keys.eleven || '')
-  const [openai, setOpenai] = useState(keys.openai || '')
-  const [show, setShow] = useState(false)
+  const [voiceId, setVoiceId] = useState(keys.voiceId || 'pNInz6obpgDQGcFmaJgB')
+  const [model, setModel] = useState(keys.model || 'gpt-4o-mini')
 
   useEffect(() => {
-    const s = localStorage.getItem('keys')
-    if (s) {
-      try { setKeys(JSON.parse(s)) } catch {}
-    }
-  }, [setKeys])
-
-  const save = () => {
-    setKeys({ openrouter, eleven, openai })
-    setShow(false)
-  }
+    setKeys({ openrouter, eleven, voiceId, model })
+  }, [openrouter, eleven, voiceId, model, setKeys])
 
   return (
-    <div className="card space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">المفاتيح BYOK</h2>
-        <button className="btn" onClick={() => setShow(s => !s)}>{show ? 'إخفاء' : 'عرض'}</button>
+    <div className="grid gap-3 border border-white/10 rounded-2xl p-4">
+      <div className="grid md:grid-cols-2 gap-3">
+        <label className="text-sm">
+          OpenRouter Key
+          <input className="w-full mt-1 px-3 py-2 bg-black/40 border border-white/10 rounded"
+                 value={openrouter} onChange={e=>setOpenrouter(e.target.value)} placeholder="sk-or-..." />
+        </label>
+        <label className="text-sm">
+          ElevenLabs Key
+          <input className="w-full mt-1 px-3 py-2 bg-black/40 border border-white/10 rounded"
+                 value={eleven} onChange={e=>setEleven(e.target.value)} placeholder="eleven-..." />
+        </label>
       </div>
 
-      {show && (
-        <div className="grid md:grid-cols-2 gap-3">
-          <div>
-            <label className="text-sm">OpenRouter Key</label>
-            <input className="input" value={openrouter} onChange={e=>setOpenrouter(e.target.value)} placeholder="sk-or-v1-..." />
-          </div>
-          <div>
-            <label className="text-sm">ElevenLabs Key</label>
-            <input className="input" value={eleven} onChange={e=>setEleven(e.target.value)} placeholder="elevenlabs_..." />
-          </div>
-          <div className="md:col-span-2">
-            <label className="text-sm">OpenAI Key (اختياري لـ Whisper)</label>
-            <input className="input" value={openai} onChange={e=>setOpenai(e.target.value)} placeholder="sk-..." />
-          </div>
-          <div>
-            <label className="text-sm">نموذج GPT</label>
-            <input className="input" value={model} onChange={e=>setModel(e.target.value)} />
-          </div>
-          <div>
-            <label className="text-sm">Voice ID (ElevenLabs)</label>
-            <input className="input" value={voiceId} onChange={e=>setVoiceId(e.target.value)} placeholder="Adam, Rachel, ... or a voice-id" />
-          </div>
-          <div className="md:col-span-2">
-            <button className="btn w-full" onClick={save}>حفظ</button>
-          </div>
-        </div>
-      )}
+      <div className="grid md:grid-cols-2 gap-3">
+        <label className="text-sm">
+          Model
+          <input className="w-full mt-1 px-3 py-2 bg-black/40 border border-white/10 rounded"
+                 value={model} onChange={e=>setModel(e.target.value)} placeholder="gpt-4o-mini" />
+        </label>
+        <label className="text-sm">
+          ElevenLabs Voice ID
+          <input className="w-full mt-1 px-3 py-2 bg-black/40 border border-white/10 rounded"
+                 value={voiceId} onChange={e=>setVoiceId(e.target.value)} placeholder="pNInz6obpgDQGcFmaJgB" />
+        </label>
+      </div>
 
-      {!show && <p className="text-sm text-gray-400">لن نخزّن المفاتيح على الخادم. تُحفظ محليًا في المتصفح وتُرسل فقط كبروكسي عند الطلب.</p>}
+      <p className="text-xs text-gray-400">
+        يتم الحفظ محليًا. لا تُرسل المفاتيح للخادم إلا كبروكسي إلى مزود الخدمة.
+      </p>
     </div>
   )
 }
