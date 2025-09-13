@@ -1,50 +1,76 @@
-'use client'
+"use client"
 
-import { useEffect, useState } from 'react'
-import { useApp } from '../lib/store'
+import { useState } from "react"
+import { useApp } from "@/lib/store"
 
 export default function KeyGate() {
-  const { keys, setKeys } = useApp()
-  const [openrouter, setOpenrouter] = useState(keys.openrouter || '')
-  const [eleven, setEleven] = useState(keys.eleven || '')
-  const [voiceId, setVoiceId] = useState(keys.voiceId || 'pNInz6obpgDQGcFmaJgB')
-  const [model, setModel] = useState(keys.model || 'gpt-4o-mini')
+  const { keys, setKeys, model, setModel, voiceId, setVoiceId } = useApp()
+  const [openrouter, setOpenrouter] = useState(keys.openrouter || "")
+  const [eleven, setEleven] = useState(keys.eleven || "")
+  const [openai, setOpenai] = useState(keys.openai || "")
 
-  useEffect(() => {
-    setKeys({ openrouter, eleven, voiceId, model })
-  }, [openrouter, eleven, voiceId, model, setKeys])
+  const saveKeys = () => {
+    setKeys({ openrouter, eleven, openai })
+  }
 
   return (
-    <div className="grid gap-3 border border-white/10 rounded-2xl p-4">
-      <div className="grid md:grid-cols-2 gap-3">
-        <label className="text-sm">
-          OpenRouter Key
-          <input className="w-full mt-1 px-3 py-2 bg-black/40 border border-white/10 rounded"
-                 value={openrouter} onChange={e=>setOpenrouter(e.target.value)} placeholder="sk-or-..." />
-        </label>
-        <label className="text-sm">
-          ElevenLabs Key
-          <input className="w-full mt-1 px-3 py-2 bg-black/40 border border-white/10 rounded"
-                 value={eleven} onChange={e=>setEleven(e.target.value)} placeholder="eleven-..." />
-        </label>
+    <div className="p-4 border border-white/10 rounded-2xl space-y-4">
+      <div>
+        <label className="block text-sm mb-1">OpenRouter Key</label>
+        <input
+          type="password"
+          className="w-full p-2 bg-black/40 border border-white/10 rounded"
+          value={openrouter}
+          onChange={(e) => setOpenrouter(e.target.value)}
+        />
       </div>
 
-      <div className="grid md:grid-cols-2 gap-3">
-        <label className="text-sm">
-          Model
-          <input className="w-full mt-1 px-3 py-2 bg-black/40 border border-white/10 rounded"
-                 value={model} onChange={e=>setModel(e.target.value)} placeholder="gpt-4o-mini" />
-        </label>
-        <label className="text-sm">
-          ElevenLabs Voice ID
-          <input className="w-full mt-1 px-3 py-2 bg-black/40 border border-white/10 rounded"
-                 value={voiceId} onChange={e=>setVoiceId(e.target.value)} placeholder="pNInz6obpgDQGcFmaJgB" />
-        </label>
+      <div>
+        <label className="block text-sm mb-1">ElevenLabs Key</label>
+        <input
+          type="password"
+          className="w-full p-2 bg-black/40 border border-white/10 rounded"
+          value={eleven}
+          onChange={(e) => setEleven(e.target.value)}
+        />
       </div>
 
-      <p className="text-xs text-gray-400">
-        يتم الحفظ محليًا. لا تُرسل المفاتيح للخادم إلا كبروكسي إلى مزود الخدمة.
-      </p>
+      <div>
+        <label className="block text-sm mb-1">OpenAI Key</label>
+        <input
+          type="password"
+          className="w-full p-2 bg-black/40 border border-white/10 rounded"
+          value={openai}
+          onChange={(e) => setOpenai(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm mb-1">Model</label>
+        <input
+          type="text"
+          className="w-full p-2 bg-black/40 border border-white/10 rounded"
+          value={model}
+          onChange={(e) => setModel(e.target.value)}
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm mb-1">Voice ID</label>
+        <input
+          type="text"
+          className="w-full p-2 bg-black/40 border border-white/10 rounded"
+          value={voiceId}
+          onChange={(e) => setVoiceId(e.target.value)}
+        />
+      </div>
+
+      <button
+        className="w-full py-2 bg-white/10 rounded-lg"
+        onClick={saveKeys}
+      >
+        حفظ
+      </button>
     </div>
   )
 }
